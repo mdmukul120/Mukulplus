@@ -47,8 +47,6 @@ import kotlinx.coroutines.delay
 fun MukulVideoPlayer(
     currentChannel: ChannelItem,
     allChannels: List<ChannelItem>,
-    isFavorite: Boolean,
-    onToggleFavorite: () -> Unit,
     onSelectChannel: (ChannelItem) -> Unit,
     onClosePlayer: () -> Unit,
     modifier: Modifier = Modifier
@@ -342,22 +340,6 @@ fun MukulVideoPlayer(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-
-                    // Favorite Toggle
-                    IconButton(
-                        onClick = onToggleFavorite,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = if (isFavorite) MukulLiveRed else Color.White
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
 
                     // Resize Aspect Ratio
                     IconButton(
