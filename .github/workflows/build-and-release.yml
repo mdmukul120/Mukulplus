@@ -33,24 +33,33 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Make Gradlew Executable
-        run: chmod +x gradlew || true
+        run: chmod +x gradlew
 
-      - name: Create Mock Keystore for Release (if not provided)
+      - name: Prepare Signing Keystores (Debug & Release)
         run: |
+          # 1. Restore or create debug.keystore for debug builds
+          if [ -f "debug.keystore.base64" ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          else
+            keytool -genkeypair -v -keystore debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+          fi
+
+          # 2. Create release keystore if not provided
           if [ ! -f "my-upload-key.jks" ]; then
             keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass mukulpluspass -keypass mukulpluspass -dname "CN=MukulPlus, OU=App, O=MukulPlus, L=Dhaka, S=Dhaka, C=BD"
-            echo "STORE_PASSWORD=mukulpluspass" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=mukulpluspass" >> $GITHUB_ENV
           fi
 
       - name: Build Debug & Release APK
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
+          STORE_PASSWORD: mukulpluspass
+          KEY_PASSWORD: mukulpluspass
         run: |
-          ./gradlew assembleDebug assembleRelease --stacktrace
+          ./gradlew assembleDebug assembleRelease --no-daemon --no-configuration-cache --stacktrace
 
       - name: Prepare APKs for Release
         run: |
           mkdir -p release_apks
-          # Copy release APK if created, otherwise debug APK
           if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
             cp app/build/outputs/apk/release/app-release.apk release_apks/MukulPlus-Release.apk
           fi
@@ -82,14 +91,15 @@ jobs:
           tag_name: ${{ steps.tag.outputs.tag_name }}
           name: Mukul Plus Release ${{ steps.tag.outputs.tag_name }}
           body: |
-            ## 🚀 Mukul Plus OTT & Live IPTV
+            ## 🚀 Mukul Plus OTT, Live IPTV, K-Drama & Anime
             স্বয়ংক্রিয়ভাবে তৈরি করা Mukul Plus অ্যান্ড্রয়েড অ্যাপ্লিকেশন (Automatic Build & Release).
             
             ### ✨ Features Included:
             - 📺 **600+ Verified Live Channels (IPTV)** - Bangla, Sports, News, Movies, India, Global
-            - 🎬 **Movies & Series Streaming** - Bollywood, Hollywood, Serials, Hindi Dubbed
-            - 🎌 **Anime & K-Drama** - Top Airing Anime & Asian Drama
-            - ⚡ **High Performance Video Player (Media3 / HLS)** - Fast buffer, low latency, full screen
+            - 🎭 **K-Drama (Korean, Chinese, Asian Drama)** - Hindi Dubbed with episode streaming
+            - 🎌 **Anime Hub** - Trending Anime series & movies (Dual/Multi Audio Hindi)
+            - 🎬 **Movies & Series Streaming** - Bollywood, Hollywood, Serials
+            - ⚡ **High Performance Video Player (Media3 / HLS)** - Low latency, full screen, aspect ratio switcher
             - ❤️ **Favorites / Bookmarking** - Save favorite channels and movies
             
             ### 📲 Download APK:
