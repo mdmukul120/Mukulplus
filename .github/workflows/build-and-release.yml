@@ -1,0 +1,101 @@
+name: Build & Release Mukul Plus APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradlew Executable
+        run: chmod +x gradlew || true
+
+      - name: Create Mock Keystore for Release (if not provided)
+        run: |
+          if [ ! -f "my-upload-key.jks" ]; then
+            keytool -genkeypair -v -keystore my-upload-key.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 -storepass mukulpluspass -keypass mukulpluspass -dname "CN=MukulPlus, OU=App, O=MukulPlus, L=Dhaka, S=Dhaka, C=BD"
+            echo "STORE_PASSWORD=mukulpluspass" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=mukulpluspass" >> $GITHUB_ENV
+          fi
+
+      - name: Build Debug & Release APK
+        run: |
+          ./gradlew assembleDebug assembleRelease --stacktrace
+
+      - name: Prepare APKs for Release
+        run: |
+          mkdir -p release_apks
+          # Copy release APK if created, otherwise debug APK
+          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+            cp app/build/outputs/apk/release/app-release.apk release_apks/MukulPlus-Release.apk
+          fi
+          if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk release_apks/MukulPlus-Debug.apk
+          fi
+          ls -la release_apks/
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MukulPlus-APKs
+          path: release_apks/*.apk
+
+      - name: Determine Tag Name
+        id: tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+          else
+            TAG_NAME="v1.0.$(date +'%Y%m%d%H%M')"
+          fi
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          name: Mukul Plus Release ${{ steps.tag.outputs.tag_name }}
+          body: |
+            ## 🚀 Mukul Plus OTT & Live IPTV
+            স্বয়ংক্রিয়ভাবে তৈরি করা Mukul Plus অ্যান্ড্রয়েড অ্যাপ্লিকেশন (Automatic Build & Release).
+            
+            ### ✨ Features Included:
+            - 📺 **600+ Verified Live Channels (IPTV)** - Bangla, Sports, News, Movies, India, Global
+            - 🎬 **Movies & Series Streaming** - Bollywood, Hollywood, Serials, Hindi Dubbed
+            - 🎌 **Anime & K-Drama** - Top Airing Anime & Asian Drama
+            - ⚡ **High Performance Video Player (Media3 / HLS)** - Fast buffer, low latency, full screen
+            - ❤️ **Favorites / Bookmarking** - Save favorite channels and movies
+            
+            ### 📲 Download APK:
+            Download **MukulPlus-Release.apk** or **MukulPlus-Debug.apk** below and install on your Android device.
+          files: release_apks/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

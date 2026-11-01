@@ -1,0 +1,6 @@
+{
+  "name": "Mukul Plus",
+  "description": "Watch Live TV, Sports, Movies, Series & Anime with Mukul Plus OTT",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
